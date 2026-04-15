@@ -1,0 +1,153 @@
+name: Loan Prediction CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY_BACKEND: loan-prediction-backend
+  ECR_REPOSITORY_FRONTEND: loan-prediction-frontend
+  EKS_CLUSTER_NAME: loan-prediction-cluster
+  K8S_NAMESPACE: loan-prediction
+
+jobs:
+  # ============================================
+  # Job 1: Lint & Test
+  # ============================================
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest flake8
+
+      - name: Lint with flake8
+        run: |
+          flake8 backend/ ml_pipeline/ --max-line-length=120 --ignore=E501,W503
+
+      - name: Run ML pipeline tests
+        run: |
+          python -m ml_pipeline.src.data_preprocessing
+          python -m ml_pipeline.src.train
+          python -m ml_pipeline.src.evaluate
+
+      - name: Test backend imports
+        run: |
+          cd backend && python -c "from app.main import app; print('✅ Backend imports OK')"
+
+  # ============================================
+  # Job 2: Build Frontend
+  # ============================================
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & Build
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/
+
+  # ============================================
+  # Job 3: Build & Push Docker Images
+  # ============================================
+  docker:
+    name: Docker Build & Push
+    needs: [test, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG ./backend
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
+
+      - name: Build & push frontend image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG ./frontend
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest
+
+  # ============================================
+  # Job 4: Deploy to EKS
+  # ============================================
+  deploy:
+    name: Deploy to EKS
+    needs: [docker]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+
+      - name: Deploy to Kubernetes
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f k8s/ -n $K8S_NAMESPACE
+          kubectl set image deployment/loan-prediction-backend backend=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG -n $K8S_NAMESPACE
+          kubectl set image deployment/loan-prediction-frontend frontend=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG -n $K8S_NAMESPACE
+          kubectl rollout status deployment/loan-prediction-backend -n $K8S_NAMESPACE --timeout=300s
+          kubectl rollout status deployment/loan-prediction-frontend -n $K8S_NAMESPACE --timeout=300s

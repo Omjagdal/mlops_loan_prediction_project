@@ -1,0 +1,178 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "API Request Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(loan_api_requests_total[5m])",
+          "legendFormat": "{{method}} {{endpoint}} - {{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "auto"
+          }
+        }
+      }
+    },
+    {
+      "title": "Request Latency (p95)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(loan_api_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95 latency"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(loan_api_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50 latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {"mode": "palette-classic"}
+        }
+      }
+    },
+    {
+      "title": "Total Predictions",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(loan_predictions_total)",
+          "legendFormat": "Total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "#00FFC2", "mode": "fixed"},
+          "thresholds": {
+            "steps": [
+              {"color": "#00FFC2", "value": null}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Approvals",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8},
+      "targets": [
+        {
+          "expr": "loan_predictions_total{result=\"Approved\"}",
+          "legendFormat": "Approved"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "#00FFC2", "mode": "fixed"}
+        }
+      }
+    },
+    {
+      "title": "Rejections",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "loan_predictions_total{result=\"Rejected\"}",
+          "legendFormat": "Rejected"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "#FF4D6A", "mode": "fixed"}
+        }
+      }
+    },
+    {
+      "title": "Approval Rate",
+      "type": "gauge",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8},
+      "targets": [
+        {
+          "expr": "loan_predictions_total{result=\"Approved\"} / sum(loan_predictions_total) * 100",
+          "legendFormat": "Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"color": "#FF4D6A", "value": null},
+              {"color": "#FFB800", "value": 40},
+              {"color": "#00FFC2", "value": 60}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Request Duration Distribution",
+      "type": "histogram",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "targets": [
+        {
+          "expr": "rate(loan_api_request_duration_seconds_bucket[5m])",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "title": "API Error Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "targets": [
+        {
+          "expr": "rate(loan_api_requests_total{status=~\"5..\"}[5m])",
+          "legendFormat": "5xx errors"
+        },
+        {
+          "expr": "rate(loan_api_requests_total{status=~\"4..\"}[5m])",
+          "legendFormat": "4xx errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2
+          }
+        }
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["loan-prediction", "mlops"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Loan Prediction - MLOps Dashboard",
+  "uid": "loan-prediction-dashboard",
+  "version": 1
+}

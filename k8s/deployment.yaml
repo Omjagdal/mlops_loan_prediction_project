@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan-prediction-backend
+  labels:
+    app: loan-prediction
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: loan-prediction
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: loan-prediction
+        component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: backend
+          image: loan-prediction-backend:latest
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-service:5000"
+            - name: PYTHONPATH
+              value: "/app"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: model-storage
+              mountPath: /app/models
+      volumes:
+        - name: model-storage
+          persistentVolumeClaim:
+            claimName: model-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan-prediction-frontend
+  labels:
+    app: loan-prediction
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: loan-prediction
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: loan-prediction
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: loan-prediction-frontend:latest
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
