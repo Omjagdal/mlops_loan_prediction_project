@@ -34,9 +34,18 @@ export default function Predict() {
   const { addPrediction } = usePrediction()
   const navigate = useNavigate()
 
+  // Fields that must always be numeric (even from <select> which returns strings)
+  const numericFields = new Set([
+    'age', 'annual_income', 'monthly_income', 'debt_to_income_ratio', 'credit_score',
+    'loan_amount', 'interest_rate', 'loan_term', 'installment', 'num_of_open_accounts',
+    'total_credit_limit', 'current_balance', 'delinquency_history', 'public_records',
+    'num_of_delinquencies',
+  ])
+
   const handleChange = (e) => {
     const { name, value, type } = e.target
-    setForm(prev => ({ ...prev, [name]: type === 'number' || type === 'range' ? parseFloat(value) : value }))
+    const isNumeric = type === 'number' || type === 'range' || numericFields.has(name)
+    setForm(prev => ({ ...prev, [name]: isNumeric ? parseFloat(value) : value }))
   }
 
   const handleSubmit = async (e) => {

@@ -23,8 +23,9 @@ def get_production_model_uri():
     """Get the URI of the current production model."""
     client = MlflowClient(MLFLOW_TRACKING_URI)
     try:
-        versions = client.get_latest_versions(MODEL_NAME, stages=["Production"])
-        if versions:
+        versions = client.search_model_versions(f"name='{MODEL_NAME}'")
+        prod_versions = [v for v in versions if v.current_stage == "Production"]
+        if prod_versions:
             return f"models:/{MODEL_NAME}/Production"
     except Exception:
         pass

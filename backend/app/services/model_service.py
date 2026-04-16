@@ -14,7 +14,11 @@ from typing import Dict, List
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
-PROCESSED_DIR = os.path.join(os.path.dirname(BASE_DIR), "ml_pipeline", "data", "processed")
+
+# Docker mounts processed data to /data/processed; local dev resolves relative path
+_DOCKER_PROCESSED = "/data/processed"
+_LOCAL_PROCESSED = os.path.join(os.path.dirname(BASE_DIR), "ml_pipeline", "data", "processed")
+PROCESSED_DIR = _DOCKER_PROCESSED if os.path.isdir(_DOCKER_PROCESSED) else _LOCAL_PROCESSED
 
 
 class ModelService:
@@ -112,6 +116,80 @@ class ModelService:
         bins_ct = [0, 580, 670, 740, 800, 850]
         labels_ct = ["Poor", "Fair", "Good", "Very_Good", "Excellent"]
         df["credit_tier"] = pd.cut(df["credit_score"], bins=bins_ct, labels=labels_ct)
+
+        # ---- V2 Feature Engineering (must match data_preprocessing.py) ----
+
+        # 1. Income stability index
+        expected_monthly = df["annual_income"] / 12
+        df["income_stability_index"] = df["monthly_income"] / (expected_monthly + 1)
+
+        # 2. Credit health score
+        df["credit_health_score"] = (
+            (df["credit_score"] / 850) * 0.4
+            + (1 - df["credit_utilization"].clip(0, 1)) * 0.25
+            + (1 / (1 + df["num_of_delinquencies"])) * 0.2
+            + (1 / (1 + df["public_records"])) * 0.15
+        )
+
+        # 3. Loan affordability score
+        df["loan_affordability_score"] = (df["monthly_income"] - df["installment"]) / (df["monthly_income"] + 1)
+
+        # 4. Financial stress index
+        max_delinq = max(df["num_of_delinquencies"].max(), 1)
+        df["financial_stress_index"] = (
+            df["debt_to_income_ratio"] * 0.35
+            + df["credit_utilization"].clip(0, 1) * 0.35
+            + (df["num_of_delinquencies"] / (max_delinq + 1)) * 0.3
+        )
+
+        # 5. Credit age proxy
+        df["credit_age_proxy"] = df["age"] * df["num_of_open_accounts"]
+
+        # 6. Debt coverage ratio
+        df["debt_coverage_ratio"] = df["annual_income"] / (df["current_balance"] + 1)
+
+        # 7. Payment shock indicator
+        df["payment_shock"] = (df["installment"] / (df["monthly_income"] + 1)).apply(
+            lambda x: 1 if x > 0.35 else 0
+        )
+
+        # 8. Risk-adjusted rate
+        df["risk_adjusted_rate"] = df["interest_rate"] / (df["credit_score"] / 100 + 1)
+
+        # 9. Income adequacy ratio
+        monthly_debt = df["current_balance"] * (df["interest_rate"] / 100 / 12)
+        df["income_adequacy_ratio"] = df["monthly_income"] / (df["installment"] + monthly_debt + 1)
+
+        # 10. Credit headroom
+        df["credit_headroom"] = df["available_credit"] / (df["total_credit_limit"] + 1)
+
+        # 11. Behavioral risk score
+        max_delinq_br = max(df["num_of_delinquencies"].max(), 1)
+        max_records = max(df["public_records"].max(), 1)
+        df["behavioral_risk_score"] = (
+            df["delinquency_history"] * 0.3
+            + (df["num_of_delinquencies"] / (max_delinq_br + 1)) * 0.4
+            + (df["public_records"] / (max_records + 1)) * 0.3
+        )
+
+        # 12. Financial profile cluster — quintile-based
+        # For single-row prediction, use reasonable quintile estimates
+        income_val = df["annual_income"].iloc[0]
+        loan_val = df["loan_amount"].iloc[0]
+        # Map to 1-5 quintile based on typical ranges
+        df["income_quintile"] = int(np.clip(np.searchsorted([25000, 40000, 60000, 90000], income_val) + 1, 1, 5))
+        df["loan_amount_quintile"] = int(np.clip(np.searchsorted([5000, 12000, 25000, 60000], loan_val) + 1, 1, 5))
+        df["profile_interaction"] = df["income_quintile"] * df["loan_amount_quintile"]
+
+        # Polynomial features
+        df["credit_score_sq"] = df["credit_score"] ** 2
+        df["dti_sq"] = df["debt_to_income_ratio"] ** 2
+        df["credit_util_sq"] = df["credit_utilization"] ** 2
+
+        # Interaction features
+        df["score_x_dti"] = df["credit_score"] * df["debt_to_income_ratio"]
+        df["income_x_term"] = df["annual_income"] * df["loan_term"]
+        df["rate_x_amount"] = df["interest_rate"] * df["loan_amount"]
 
         # ---- Encode categoricals ----
         categorical_cols = df.select_dtypes(include=["object", "category"]).columns

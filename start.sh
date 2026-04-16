@@ -1,9 +1,11 @@
 #!/bin/bash
 echo "Starting LoanAI Services..."
 
-# Activate python env and start backend
+# Activate python env (check both venv and vnev for typo)
 if [ -d "venv" ]; then
     source venv/bin/activate
+elif [ -d "vnev" ]; then
+    source vnev/bin/activate
 fi
 
 cd backend

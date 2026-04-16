@@ -4,6 +4,9 @@
 # ============================================
 set -e
 
+# Suppress annoying scikit-learn warnings about joblib from flooding the logs
+export PYTHONWARNINGS="ignore"
+
 echo "======================================"
 echo "🚀 LOAN PREDICTION TRAINING PIPELINE"
 echo "======================================"
@@ -16,7 +19,10 @@ cd "$PROJECT_ROOT"
 # Activate virtual environment if exists
 if [ -d "venv" ]; then
     source venv/bin/activate
-    echo "✅ Virtual environment activated"
+    echo "Virtual environment activated (venv)"
+elif [ -d "vnev" ]; then
+    source vnev/bin/activate
+    echo "Virtual environment activated (vnev)"
 fi
 
 # Step 1: Generate dataset (if needed)

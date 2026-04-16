@@ -1,6 +1,7 @@
 """
 Generate synthetic loan dataset for training.
-Creates a realistic dataset with 10,000 loan applications.
+Creates a realistic dataset with 20,000 loan applications.
+Schema matches the loan_dataset_20000.csv format used by data_preprocessing.py.
 """
 
 import numpy as np
@@ -8,120 +9,152 @@ import pandas as pd
 import os
 
 
-def generate_loan_dataset(n_samples: int = 10000, seed: int = 42) -> pd.DataFrame:
-    """Generate a realistic synthetic loan dataset."""
+def generate_loan_dataset(n_samples: int = 20000, seed: int = 42) -> pd.DataFrame:
+    """Generate a realistic synthetic loan dataset matching the production schema."""
     np.random.seed(seed)
 
     # --- Applicant Demographics ---
+    age = np.random.randint(18, 75, n_samples)
     gender = np.random.choice(["Male", "Female"], n_samples, p=[0.6, 0.4])
-    married = np.random.choice(["Yes", "No"], n_samples, p=[0.65, 0.35])
-    dependents = np.random.choice(["0", "1", "2", "3+"], n_samples, p=[0.4, 0.25, 0.2, 0.15])
-    education = np.random.choice(["Graduate", "Not Graduate"], n_samples, p=[0.7, 0.3])
-    self_employed = np.random.choice(["Yes", "No"], n_samples, p=[0.15, 0.85])
+    marital_status = np.random.choice(
+        ["Single", "Married", "Divorced"], n_samples, p=[0.30, 0.55, 0.15]
+    )
+    education_level = np.random.choice(
+        ["High School", "Bachelor's", "Master's", "PhD"],
+        n_samples, p=[0.25, 0.45, 0.22, 0.08],
+    )
+    employment_status = np.random.choice(
+        ["Employed", "Self-employed", "Unemployed", "Retired"],
+        n_samples, p=[0.65, 0.18, 0.07, 0.10],
+    )
 
     # --- Financial Features ---
-    # Applicant income (log-normal distribution for realistic skew)
-    applicant_income = np.random.lognormal(mean=8.5, sigma=0.6, size=n_samples).astype(int)
-    applicant_income = np.clip(applicant_income, 1500, 80000)
+    annual_income = np.random.lognormal(mean=10.8, sigma=0.5, size=n_samples).astype(int)
+    annual_income = np.clip(annual_income, 15000, 500000)
+    monthly_income = (annual_income / 12).astype(int)
 
-    # Coapplicant income (many zeros, some with income)
-    has_coapplicant = np.random.choice([0, 1], n_samples, p=[0.4, 0.6])
-    coapplicant_income = (
-        has_coapplicant * np.random.lognormal(mean=7.5, sigma=0.8, size=n_samples)
-    ).astype(int)
-    coapplicant_income = np.clip(coapplicant_income, 0, 50000)
+    # Debt-to-income ratio (0 to 1)
+    debt_to_income_ratio = np.clip(
+        np.random.beta(2, 5, n_samples), 0.01, 0.95
+    ).round(4)
 
-    # Loan amount (correlated with income)
-    total_income = applicant_income + coapplicant_income
-    loan_amount = (total_income * np.random.uniform(1.5, 6.0, n_samples) / 1000).astype(int)
-    loan_amount = np.clip(loan_amount, 20, 700)
+    # Credit Score (300–850)
+    credit_score = np.random.normal(700, 70, n_samples).astype(int)
+    credit_score = np.clip(credit_score, 300, 850)
 
-    # Loan term (mostly 360 months)
-    loan_amount_term = np.random.choice(
-        [60, 120, 180, 240, 300, 360, 480],
-        n_samples,
-        p=[0.02, 0.05, 0.1, 0.08, 0.05, 0.65, 0.05],
+    # Loan details
+    loan_purpose = np.random.choice(
+        ["Car", "Home", "Business", "Education", "Debt consolidation", "Other"],
+        n_samples, p=[0.20, 0.30, 0.15, 0.15, 0.12, 0.08],
+    )
+    loan_amount = np.random.lognormal(mean=9.5, sigma=0.7, size=n_samples).astype(int)
+    loan_amount = np.clip(loan_amount, 1000, 500000)
+
+    interest_rate = np.clip(
+        np.random.normal(12, 4, n_samples), 2, 30
+    ).round(2)
+
+    loan_term = np.random.choice(
+        [12, 24, 36, 48, 60, 84, 120],
+        n_samples, p=[0.05, 0.10, 0.30, 0.20, 0.20, 0.10, 0.05],
     )
 
-    # Credit history (1 = good, 0 = bad)
-    credit_history = np.random.choice([0.0, 1.0], n_samples, p=[0.15, 0.85])
+    # Monthly installment (PMT approximation)
+    monthly_rate = interest_rate / 100 / 12
+    installment = (
+        loan_amount * monthly_rate / (1 - (1 + monthly_rate) ** (-loan_term))
+    ).round(2)
+    installment = np.clip(installment, 50, 50000)
 
-    # Property area
-    property_area = np.random.choice(
-        ["Urban", "Semiurban", "Rural"], n_samples, p=[0.35, 0.4, 0.25]
-    )
+    # Grade subgrade (e.g., A1, B3, C5)
+    grades = np.random.choice(["A", "B", "C", "D", "E", "F", "G"], n_samples, p=[0.15, 0.25, 0.25, 0.15, 0.10, 0.06, 0.04])
+    subgrades = np.random.randint(1, 6, n_samples)
+    grade_subgrade = np.array([f"{g}{s}" for g, s in zip(grades, subgrades)])
 
-    # --- Credit Score (550-850) ---
-    base_credit = np.random.normal(700, 60, n_samples)
-    credit_score = np.where(credit_history == 1.0, base_credit + 30, base_credit - 80)
-    credit_score = np.clip(credit_score, 550, 850).astype(int)
+    # Credit accounts & history
+    num_of_open_accounts = np.random.poisson(8, n_samples)
+    num_of_open_accounts = np.clip(num_of_open_accounts, 0, 40)
 
-    # --- Employment Years ---
-    employment_years = np.random.exponential(5, n_samples).astype(int)
-    employment_years = np.clip(employment_years, 0, 35)
+    total_credit_limit = np.random.lognormal(mean=10.2, sigma=0.5, size=n_samples).astype(int)
+    total_credit_limit = np.clip(total_credit_limit, 1000, 500000)
 
-    # --- Generate Loan Status (Target) ---
-    # Create approval probability based on realistic factors
-    approval_prob = np.zeros(n_samples)
+    # Current balance (fraction of credit limit)
+    utilization = np.clip(np.random.beta(2, 4, n_samples), 0, 0.99)
+    current_balance = (total_credit_limit * utilization).astype(int)
 
-    # Credit history is the strongest predictor
-    approval_prob += credit_history * 0.35
+    delinquency_history = np.random.choice(range(0, 6), n_samples, p=[0.65, 0.15, 0.10, 0.05, 0.03, 0.02])
+    public_records = np.random.choice(range(0, 5), n_samples, p=[0.80, 0.12, 0.05, 0.02, 0.01])
+    num_of_delinquencies = np.random.poisson(0.5, n_samples)
+    num_of_delinquencies = np.clip(num_of_delinquencies, 0, 15)
+
+    # --- Generate Target: loan_paid_back ---
+    # Probability based on realistic financial factors
+    approval_prob = np.zeros(n_samples, dtype=float)
+
+    # Credit score (strongest predictor)
+    approval_prob += np.where(credit_score >= 740, 0.25, np.where(credit_score >= 670, 0.15, np.where(credit_score >= 580, 0.05, -0.10)))
 
     # Debt-to-income ratio
-    dti = (loan_amount * 1000) / (total_income + 1)
-    approval_prob += np.where(dti < 3, 0.2, np.where(dti < 5, 0.1, 0.0))
+    approval_prob += np.where(debt_to_income_ratio < 0.2, 0.15, np.where(debt_to_income_ratio < 0.35, 0.08, -0.05))
 
-    # Education
-    approval_prob += np.where(np.array(education) == "Graduate", 0.1, 0.0)
+    # Income adequacy
+    pti = installment / (monthly_income + 1)
+    approval_prob += np.where(pti < 0.25, 0.12, np.where(pti < 0.4, 0.05, -0.08))
 
-    # Credit score
-    approval_prob += np.where(credit_score > 750, 0.15, np.where(credit_score > 650, 0.08, 0.0))
+    # Credit utilization
+    approval_prob += np.where(utilization < 0.3, 0.10, np.where(utilization < 0.6, 0.04, -0.05))
 
-    # Property area
+    # Delinquency history
+    approval_prob += np.where(delinquency_history == 0, 0.10, np.where(delinquency_history <= 1, 0.03, -0.08))
+
+    # Employment status bonus
     approval_prob += np.where(
-        np.array(property_area) == "Semiurban",
-        0.08,
-        np.where(np.array(property_area) == "Urban", 0.05, 0.02),
+        np.array(employment_status) == "Employed", 0.08,
+        np.where(np.array(employment_status) == "Self-employed", 0.04,
+        np.where(np.array(employment_status) == "Retired", 0.02, -0.10))
     )
 
-    # Employment stability
-    approval_prob += np.where(employment_years > 5, 0.07, np.where(employment_years > 2, 0.04, 0.0))
+    # Education bonus
+    approval_prob += np.where(
+        np.isin(np.array(education_level), ["Master's", "PhD"]), 0.05,
+        np.where(np.array(education_level) == "Bachelor's", 0.03, 0.0)
+    )
 
-    # Married bonus
-    approval_prob += np.where(np.array(married) == "Yes", 0.05, 0.0)
+    # Public records penalty
+    approval_prob -= public_records * 0.05
 
-    # Add noise
-    approval_prob += np.random.normal(0, 0.05, n_samples)
+    # Base rate + noise
+    approval_prob += 0.35 + np.random.normal(0, 0.05, n_samples)
     approval_prob = np.clip(approval_prob, 0, 1)
 
-    # Convert to binary (threshold ~0.5 for ~70% approval rate)
-    loan_status = np.where(approval_prob > 0.38, "Y", "N")
+    # Binary target (~68% approval rate)
+    loan_paid_back = np.where(approval_prob > 0.42, "Yes", "No")
 
     # --- Create DataFrame ---
-    df = pd.DataFrame(
-        {
-            "Loan_ID": [f"LP{str(i).zfill(6)}" for i in range(1, n_samples + 1)],
-            "Gender": gender,
-            "Married": married,
-            "Dependents": dependents,
-            "Education": education,
-            "Self_Employed": self_employed,
-            "ApplicantIncome": applicant_income,
-            "CoapplicantIncome": coapplicant_income,
-            "LoanAmount": loan_amount,
-            "Loan_Amount_Term": loan_amount_term,
-            "Credit_History": credit_history,
-            "Property_Area": property_area,
-            "Credit_Score": credit_score,
-            "Employment_Years": employment_years,
-            "Loan_Status": loan_status,
-        }
-    )
-
-    # Introduce ~5% missing values in select columns (realistic)
-    for col in ["Gender", "Married", "Dependents", "Self_Employed", "LoanAmount", "Loan_Amount_Term", "Credit_History"]:
-        mask = np.random.random(n_samples) < 0.05
-        df.loc[mask, col] = np.nan
+    df = pd.DataFrame({
+        "age": age,
+        "gender": gender,
+        "marital_status": marital_status,
+        "education_level": education_level,
+        "annual_income": annual_income,
+        "monthly_income": monthly_income,
+        "employment_status": employment_status,
+        "debt_to_income_ratio": debt_to_income_ratio,
+        "credit_score": credit_score,
+        "loan_amount": loan_amount,
+        "loan_purpose": loan_purpose,
+        "interest_rate": interest_rate,
+        "loan_term": loan_term,
+        "installment": installment,
+        "grade_subgrade": grade_subgrade,
+        "num_of_open_accounts": num_of_open_accounts,
+        "total_credit_limit": total_credit_limit,
+        "current_balance": current_balance,
+        "delinquency_history": delinquency_history,
+        "public_records": public_records,
+        "num_of_delinquencies": num_of_delinquencies,
+        "loan_paid_back": loan_paid_back,
+    })
 
     return df
 
@@ -133,21 +166,22 @@ def main():
     os.makedirs(raw_dir, exist_ok=True)
 
     # Generate dataset
-    print("🔄 Generating synthetic loan dataset (10,000 records)...")
-    df = generate_loan_dataset(n_samples=10000)
+    print("Generating synthetic loan dataset (20,000 records)...")
+    df = generate_loan_dataset(n_samples=20000)
 
-    # Save to CSV
-    output_path = os.path.join(raw_dir, "loan_data.csv")
+    # Save to CSV — filename must match what data_preprocessing.py expects
+    output_path = os.path.join(raw_dir, "loan_dataset_20000.csv")
     df.to_csv(output_path, index=False)
 
     # Print summary stats
-    print(f"✅ Dataset saved to: {output_path}")
+    print(f"Dataset saved to: {output_path}")
     print(f"   Shape: {df.shape}")
-    print(f"   Approval Rate: {(df['Loan_Status'] == 'Y').mean():.1%}")
+    print(f"   Columns: {list(df.columns)}")
+    print(f"   Approval Rate: {(df['loan_paid_back'] == 'Yes').mean():.1%}")
     print(f"   Missing Values: {df.isnull().sum().sum()} total")
-    print(f"\n📊 Feature Summary:")
+    print(f"\nFeature Summary:")
     print(df.describe())
-    print(f"\n📋 Column Types:")
+    print(f"\nColumn Types:")
     print(df.dtypes)
 
     return df

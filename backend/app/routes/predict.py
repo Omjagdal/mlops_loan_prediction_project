@@ -16,7 +16,7 @@ from ..schemas.request_schema import (
     FeatureContribution,
 )
 from ..services.model_service import model_service
-from ..utils.preprocessing import validate_and_clean_input, calculate_risk_factors
+from ..utils.preprocessing import calculate_risk_factors
 
 router = APIRouter()
 START_TIME = time.time()
@@ -35,11 +35,8 @@ async def predict_loan(application: LoanApplication):
         # Convert to dict
         app_dict = application.model_dump()
 
-        # Validate
-        validated = validate_and_clean_input(app_dict)
-
-        # Predict
-        result = model_service.predict(validated)
+        # Predict directly using Pydantic validated schema
+        result = model_service.predict(app_dict)
 
         return PredictionResponse(
             prediction=result["prediction"],
@@ -70,8 +67,7 @@ async def predict_batch(request: BatchPredictionRequest):
     for application in request.applications:
         try:
             app_dict = application.model_dump()
-            validated = validate_and_clean_input(app_dict)
-            result = model_service.predict(validated)
+            result = model_service.predict(app_dict)
 
             pred = PredictionResponse(
                 prediction=result["prediction"],
@@ -149,21 +145,25 @@ async def health_check():
 
 @router.get("/risk-factors")
 async def get_risk_factors(
-    applicant_income: float,
-    coapplicant_income: float = 0,
-    loan_amount: float = 100,
-    loan_amount_term: float = 360,
-    credit_score: int = 700,
-    employment_years: int = 5,
+    annual_income: float = 55000,
+    monthly_income: float = 4583,
+    loan_amount: float = 15000,
+    installment: float = 487.5,
+    credit_score: int = 720,
+    debt_to_income_ratio: float = 0.25,
+    current_balance: float = 12000,
+    total_credit_limit: float = 35000,
 ):
     """Calculate risk factors for a given set of inputs."""
     data = {
-        "applicant_income": applicant_income,
-        "coapplicant_income": coapplicant_income,
+        "annual_income": annual_income,
+        "monthly_income": monthly_income,
         "loan_amount": loan_amount,
-        "loan_amount_term": loan_amount_term,
+        "installment": installment,
         "credit_score": credit_score,
-        "employment_years": employment_years,
+        "debt_to_income_ratio": debt_to_income_ratio,
+        "current_balance": current_balance,
+        "total_credit_limit": total_credit_limit,
     }
     factors = calculate_risk_factors(data)
     return factors

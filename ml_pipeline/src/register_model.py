@@ -66,28 +66,36 @@ def register_model(client: MlflowClient, run) -> str:
 
 
 def promote_to_production(client: MlflowClient, version: str):
-    """Transition model version to Production stage."""
+    """Promote model version — set alias or transition stage."""
     try:
-        # Archive existing production models
-        prod_versions = client.get_latest_versions(MODEL_NAME, stages=["Production"])
-        for pv in prod_versions:
-            client.transition_model_version_stage(
-                name=MODEL_NAME,
-                version=pv.version,
-                stage="Archived",
-            )
-            print(f"📦 Archived v{pv.version}")
+        # Try using model aliases (MLflow 2.x preferred method)
+        try:
+            client.set_registered_model_alias(MODEL_NAME, "production", version)
+            print(f"Promoted v{version} via alias 'production'")
+            return
+        except AttributeError:
+            pass  # Older MLflow without alias support
 
-        # Promote new version to Production
+        # Fallback: archive existing production models, then promote
+        all_versions = client.search_model_versions(f"name='{MODEL_NAME}'")
+        for v in all_versions:
+            if v.current_stage == "Production" and v.version != version:
+                client.transition_model_version_stage(
+                    name=MODEL_NAME,
+                    version=v.version,
+                    stage="Archived",
+                )
+                print(f"Archived v{v.version}")
+
         client.transition_model_version_stage(
             name=MODEL_NAME,
             version=version,
             stage="Production",
         )
-        print(f"🚀 Promoted v{version} to Production")
+        print(f"Promoted v{version} to Production")
 
     except Exception as e:
-        print(f"⚠️  Stage transition note: {e}")
+        print(f"Stage transition note: {e}")
         print(f"   Model v{version} is registered and available")
 
 

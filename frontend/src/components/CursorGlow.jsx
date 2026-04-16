@@ -110,7 +110,7 @@ export default function CursorGlow() {
       window.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseleave', handleMouseLeave)
     }
-  }, [isVisible])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <canvas

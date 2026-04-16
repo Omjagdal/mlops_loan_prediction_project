@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # ============================================
@@ -16,7 +15,7 @@ services:
       - PYTHONPATH=/app
     volumes:
       - ./backend/models:/app/models
-      - ./ml_pipeline/data/processed:/app/../ml_pipeline/data/processed
+      - ./ml_pipeline/data/processed:/data/processed
     depends_on:
       - mlflow
     networks:
