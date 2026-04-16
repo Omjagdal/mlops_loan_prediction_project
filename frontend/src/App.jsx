@@ -1,7 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import TopNav from './components/TopNav'
 import ParticleSystem from './components/ParticleSystem'
+import AuroraBackground from './components/AuroraBackground'
+import CursorGlow from './components/CursorGlow'
 import Dashboard from './pages/Dashboard'
 import Predict from './pages/Predict'
 import Result from './pages/Result'
@@ -10,14 +13,27 @@ import Experiments from './pages/Experiments'
 import Monitoring from './pages/Monitoring'
 import { PredictionProvider } from './context/PredictionContext'
 
+// Lazy-load the 3D core — renders once at app level
+const FloatingLogo3D = lazy(() => import('./components/FloatingLogo3D'))
+
 function App() {
   const location = useLocation()
 
   return (
     <PredictionProvider>
       {/* Cinematic background layers */}
+      <AuroraBackground />
       <div className="cinematic-bg" />
-      <ParticleSystem count={25} />
+      <ParticleSystem count={35} />
+      <CursorGlow />
+
+      {/* ═══ FIXED 3D CORE — Always centered, always visible ═══ */}
+      <Suspense fallback={null}>
+        <FloatingLogo3D className="scene-fixed-core" />
+      </Suspense>
+
+      {/* Animated mesh overlay */}
+      <div className="mesh-overlay" />
 
       <div className="app-layout">
         <TopNav />

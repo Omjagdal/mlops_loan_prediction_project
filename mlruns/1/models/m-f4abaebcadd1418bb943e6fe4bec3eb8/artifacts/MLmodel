@@ -1,0 +1,23 @@
+artifact_path: /Users/shivaai/Desktop/MLOPS LOAN PREICCTION PROJECT/mlruns/1/models/m-f4abaebcadd1418bb943e6fe4bec3eb8/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.14.3
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.11.1
+model_id: m-f4abaebcadd1418bb943e6fe4bec3eb8
+model_size_bytes: 3306184
+model_uuid: m-f4abaebcadd1418bb943e6fe4bec3eb8
+prompts: null
+run_id: 9729da7b06d14e7da23321f5c97a2869
+utc_time_created: '2026-04-15 18:12:39.461251'

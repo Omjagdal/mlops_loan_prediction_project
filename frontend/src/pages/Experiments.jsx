@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import PageTransition from '../components/PageTransition'
 
 const mockRuns = [
   { id: 'run_001', model: 'Random Forest', f1: 0.938, accuracy: 0.942, auc: 0.967, status: 'FINISHED', duration: '4m 32s', date: '2026-04-15 11:30', params: { n_estimators: 300, max_depth: 15, min_samples_split: 5 } },
@@ -18,13 +19,7 @@ const trendData = [
 export default function Experiments() {
   const [sel, setSel] = useState(mockRuns[0])
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="animate-fade-up"
-    >
+    <PageTransition>
       <div className="page-header">
         <p className="text-label" style={{ color: 'var(--ember)', letterSpacing: '0.15em', marginBottom: '8px' }}>MLFLOW TRACKING</p>
         <h1>Experiment Tracking</h1>
@@ -73,5 +68,5 @@ export default function Experiments() {
             <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{r.model}</td>
             <td>{(r.f1*100).toFixed(1)}%</td><td>{(r.accuracy*100).toFixed(1)}%</td><td>{(r.auc*100).toFixed(1)}%</td>
             <td>{r.duration}</td><td><span className="badge badge-success">{r.status}</span></td></tr>))}</tbody></table></div>
-    </motion.div>)
+    </PageTransition>)
 }
