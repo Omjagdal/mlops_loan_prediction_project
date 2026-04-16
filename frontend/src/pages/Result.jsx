@@ -41,7 +41,7 @@ export default function Result() {
           >Submit a loan application to see the AI decision.</motion.p>
           <motion.button className="btn btn-primary btn-lg" onClick={() => navigate('/predict')}
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-            whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(255, 140, 66, 0.4)' }}
+            whileHover={{ scale: 1.04, boxShadow: '0 12px 40px rgba(0, 109, 55, 0.25)' }}
             whileTap={{ scale: 0.97 }}
           >Make a Prediction</motion.button>
         </div>
@@ -52,13 +52,13 @@ export default function Result() {
   const { prediction, probability, confidence, risk_level, feature_contributions, explanation } = predictionResult
   const isApproved = prediction === 'Approved'
   const gaugePercent = (probability * 100).toFixed(1)
-  const gaugeColor = isApproved ? '#4ADE80' : '#FF6B6B'
+  const gaugeColor = isApproved ? '#006d37' : '#ba1a1a'
 
   return (
     <PageTransition>
       <motion.div variants={containerVariants} initial="initial" animate="animate">
         <motion.div className="page-header" variants={itemVariants}>
-          <p className="text-label" style={{ color: 'var(--ember)', letterSpacing: '0.15em', marginBottom: '8px' }}>AI DECISION</p>
+          <p className="text-label" style={{ color: 'var(--primary)', letterSpacing: '0.15em', marginBottom: '8px' }}>AI DECISION</p>
           <h1>Prediction Result</h1>
         </motion.div>
 
@@ -69,8 +69,8 @@ export default function Result() {
             variants={scaleInVariants}
             whileHover={{
               boxShadow: isApproved
-                ? '0 0 80px rgba(74, 222, 128, 0.15)'
-                : '0 0 80px rgba(255, 107, 107, 0.15)',
+                ? '0 0 80px rgba(0, 109, 55, 0.12)'
+                : '0 0 80px rgba(186, 26, 26, 0.12)',
               transition: { duration: 0.4 },
             }}
           >
@@ -87,7 +87,7 @@ export default function Result() {
             {/* SVG Gauge */}
             <div style={{ width: '200px', height: '200px', margin: '24px auto', position: 'relative' }}>
               <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--bg-container-highest)" strokeWidth="2.5" />
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface-container-highest)" strokeWidth="2.5" />
                 <motion.circle cx="18" cy="18" r="15.9" fill="none" stroke={gaugeColor}
                   strokeWidth="2.5"
                   strokeLinecap="round"
@@ -98,7 +98,7 @@ export default function Result() {
                 />
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                <span style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em' }}>
+                <span style={{ fontFamily: 'var(--font-headline)', fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
                   <AnimatedCounter target={parseFloat(gaugePercent)} decimals={1} suffix="%" duration={1500} />
                 </span>
                 <span className="text-label" style={{ marginTop: '4px' }}>Probability</span>
@@ -156,7 +156,7 @@ export default function Result() {
         {/* Explanation */}
         <motion.div className="glass-card" style={{ margin: '24px 0' }} variants={itemVariants}>
           <h3 className="text-title" style={{ marginBottom: '12px' }}>AI Explanation</h3>
-          <p style={{ fontSize: '1rem', lineHeight: 1.8, color: 'var(--text-secondary)' }}>{explanation}</p>
+          <p style={{ fontSize: '1rem', lineHeight: 1.8, color: 'var(--on-surface-variant)' }}>{explanation}</p>
         </motion.div>
 
         {/* Application Summary */}
@@ -167,7 +167,7 @@ export default function Result() {
               {Object.entries(lastApplication).map(([key, value]) => (
                 <div key={key} style={{ marginBottom: '8px' }}>
                   <span className="text-label" style={{ display: 'block', marginBottom: '2px' }}>{key.replace(/_/g, ' ')}</span>
-                  <span style={{ fontSize: '0.9375rem', color: 'var(--text-primary)' }}>{typeof value === 'number' ? value.toLocaleString() : value}</span>
+                  <span style={{ fontSize: '0.9375rem', color: 'var(--on-surface)' }}>{typeof value === 'number' ? value.toLocaleString() : value}</span>
                 </div>
               ))}
             </div>
@@ -176,7 +176,7 @@ export default function Result() {
 
         <motion.div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }} variants={itemVariants}>
           <motion.button className="btn btn-primary btn-lg" onClick={() => navigate('/predict')}
-            whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(255, 140, 66, 0.4)' }}
+            whileHover={{ scale: 1.04, boxShadow: '0 12px 40px rgba(0, 109, 55, 0.25)' }}
             whileTap={{ scale: 0.97 }}
           >New Prediction</motion.button>
           <motion.button className="btn btn-secondary btn-lg" onClick={() => navigate('/')}

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 /**
- * CursorGlow — Cinematic cursor follower with ember glow trail
- * Creates a magnetic glow that follows the mouse with smooth easing,
- * plus a trail of fading orbs behind it.
+ * CursorGlow — Subtle emerald cursor follower
+ * Organic, warm glow that follows the mouse with smooth easing
  */
 export default function CursorGlow() {
   const canvasRef = useRef(null)
@@ -42,32 +41,32 @@ export default function CursorGlow() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // Smooth follow with lerp
-      smoothMouse.current.x += (mouse.current.x - smoothMouse.current.x) * 0.12
-      smoothMouse.current.y += (mouse.current.y - smoothMouse.current.y) * 0.12
+      smoothMouse.current.x += (mouse.current.x - smoothMouse.current.x) * 0.1
+      smoothMouse.current.y += (mouse.current.y - smoothMouse.current.y) * 0.1
 
       const mx = smoothMouse.current.x
       const my = smoothMouse.current.y
 
       // Add to trail
       trail.current.push({ x: mx, y: my, life: 1.0 })
-      if (trail.current.length > 25) trail.current.shift()
+      if (trail.current.length > 20) trail.current.shift()
 
-      // Draw trail orbs (oldest to newest)
-      trail.current.forEach((point, i) => {
-        point.life -= 0.03
+      // Draw trail orbs (emerald tinted)
+      trail.current.forEach((point) => {
+        point.life -= 0.04
 
         if (point.life <= 0) return
 
-        const alpha = point.life * 0.04
-        const size = point.life * 40 + 10
+        const alpha = point.life * 0.025
+        const size = point.life * 35 + 8
 
         const gradient = ctx.createRadialGradient(
           point.x, point.y, 0,
           point.x, point.y, size
         )
-        gradient.addColorStop(0, `rgba(255, 140, 66, ${alpha * 1.5})`)
-        gradient.addColorStop(0.4, `rgba(255, 140, 66, ${alpha * 0.5})`)
-        gradient.addColorStop(1, 'rgba(255, 140, 66, 0)')
+        gradient.addColorStop(0, `rgba(46, 204, 113, ${alpha * 1.2})`)
+        gradient.addColorStop(0.4, `rgba(46, 204, 113, ${alpha * 0.4})`)
+        gradient.addColorStop(1, 'rgba(46, 204, 113, 0)')
 
         ctx.fillStyle = gradient
         ctx.beginPath()
@@ -75,27 +74,25 @@ export default function CursorGlow() {
         ctx.fill()
       })
 
-      // Main cursor glow (large soft ember)
+      // Main cursor glow (soft emerald)
       if (mx > 0 && my > 0) {
-        // Outer glow
-        const outerGlow = ctx.createRadialGradient(mx, my, 0, mx, my, 180)
-        outerGlow.addColorStop(0, 'rgba(255, 140, 66, 0.06)')
-        outerGlow.addColorStop(0.3, 'rgba(255, 140, 66, 0.03)')
-        outerGlow.addColorStop(0.6, 'rgba(255, 107, 107, 0.01)')
+        const outerGlow = ctx.createRadialGradient(mx, my, 0, mx, my, 150)
+        outerGlow.addColorStop(0, 'rgba(46, 204, 113, 0.04)')
+        outerGlow.addColorStop(0.3, 'rgba(46, 204, 113, 0.02)')
+        outerGlow.addColorStop(0.6, 'rgba(0, 109, 55, 0.008)')
         outerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)')
         ctx.fillStyle = outerGlow
         ctx.beginPath()
-        ctx.arc(mx, my, 180, 0, Math.PI * 2)
+        ctx.arc(mx, my, 150, 0, Math.PI * 2)
         ctx.fill()
 
-        // Inner bright core
-        const innerGlow = ctx.createRadialGradient(mx, my, 0, mx, my, 30)
-        innerGlow.addColorStop(0, 'rgba(255, 179, 102, 0.12)')
-        innerGlow.addColorStop(0.5, 'rgba(255, 140, 66, 0.05)')
-        innerGlow.addColorStop(1, 'rgba(255, 140, 66, 0)')
+        const innerGlow = ctx.createRadialGradient(mx, my, 0, mx, my, 25)
+        innerGlow.addColorStop(0, 'rgba(74, 225, 131, 0.08)')
+        innerGlow.addColorStop(0.5, 'rgba(46, 204, 113, 0.03)')
+        innerGlow.addColorStop(1, 'rgba(46, 204, 113, 0)')
         ctx.fillStyle = innerGlow
         ctx.beginPath()
-        ctx.arc(mx, my, 30, 0, Math.PI * 2)
+        ctx.arc(mx, my, 25, 0, Math.PI * 2)
         ctx.fill()
       }
 

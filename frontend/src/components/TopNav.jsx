@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 const links = [
@@ -11,6 +11,7 @@ const links = [
 
 export default function TopNav() {
   const location = useLocation()
+  const navigate = useNavigate()
 
   return (
     <motion.nav
@@ -23,7 +24,7 @@ export default function TopNav() {
         <div className="top-nav-logo">
           <motion.div
             className="logo-icon"
-            whileHover={{ scale: 1.1, rotate: 5 }}
+            whileHover={{ scale: 1.08, rotate: 3 }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 15 }}
           >
@@ -59,6 +60,18 @@ export default function TopNav() {
             )
           })}
         </div>
+
+        <motion.button
+          className="btn btn-primary btn-sm"
+          onClick={() => navigate('/predict')}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+        >
+          Start Prediction
+        </motion.button>
       </div>
     </motion.nav>
   )

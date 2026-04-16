@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion'
 
 /**
- * Cinematic page transition wrapper
+ * Editorial page transition wrapper
  * Uses layered animations: blur → scale → slide → fade
- * With an overlay flash effect during transition
+ * With a soft emerald overlay flash during transition
  */
 
 const pageVariants = {
@@ -20,7 +20,7 @@ const pageVariants = {
     filter: 'blur(0px)',
     transition: {
       duration: 0.8,
-      ease: [0.22, 1, 0.36, 1], // Soft custom spring/ease-out
+      ease: [0.22, 1, 0.36, 1],
       staggerChildren: 0.08,
       when: 'beforeChildren',
     },
@@ -52,13 +52,13 @@ export const itemVariants = {
 export const cardHover = {
   rest: {
     scale: 1,
-    boxShadow: '0 0 0 rgba(255, 140, 66, 0)',
+    boxShadow: '0 0 0 rgba(0, 109, 55, 0)',
     transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
   },
   hover: {
     scale: 1.02,
     y: -4,
-    boxShadow: '0 8px 40px rgba(255, 140, 66, 0.15)',
+    boxShadow: '0 8px 40px rgba(0, 109, 55, 0.1)',
     transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
   },
 }
@@ -67,15 +67,15 @@ export const cardHover = {
 export const glowPulse = {
   animate: {
     boxShadow: [
-      '0 0 20px rgba(255, 140, 66, 0.1)',
-      '0 0 40px rgba(255, 140, 66, 0.2)',
-      '0 0 20px rgba(255, 140, 66, 0.1)',
+      '0 0 20px rgba(0, 109, 55, 0.06)',
+      '0 0 40px rgba(0, 109, 55, 0.12)',
+      '0 0 20px rgba(0, 109, 55, 0.06)',
     ],
     transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
   },
 }
 
-// Transition overlay — ember flash
+// Transition overlay — emerald flash
 function TransitionOverlay() {
   return (
     <motion.div
@@ -85,7 +85,7 @@ function TransitionOverlay() {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'radial-gradient(ellipse at center, rgba(255,140,66,0.15) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,109,55,0.08) 0%, transparent 70%)',
         pointerEvents: 'none',
         zIndex: 999,
       }}

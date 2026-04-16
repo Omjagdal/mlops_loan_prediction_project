@@ -65,7 +65,7 @@ export default function Predict() {
   const dtiRisk = form.debt_to_income_ratio > 0.4 ? 'High' : form.debt_to_income_ratio > 0.25 ? 'Medium' : 'Low'
   const creditRisk = form.credit_score < 580 ? 'High' : form.credit_score < 670 ? 'Medium' : 'Low'
   const ltiRisk = (form.loan_amount / (form.annual_income || 1)) > 0.5 ? 'High' : (form.loan_amount / (form.annual_income || 1)) > 0.3 ? 'Medium' : 'Low'
-  const riskColor = (l) => l === 'High' ? 'var(--danger)' : l === 'Medium' ? 'var(--warning)' : 'var(--emerald)'
+  const riskColor = (l) => l === 'High' ? 'var(--danger)' : l === 'Medium' ? 'var(--warning)' : 'var(--primary)'
 
   const affordability = ((form.monthly_income - form.installment) / (form.monthly_income || 1) * 100).toFixed(0)
 
@@ -73,7 +73,7 @@ export default function Predict() {
     <PageTransition>
       <motion.div variants={containerVariants} initial="initial" animate="animate">
         <motion.div className="page-header" variants={itemVariants}>
-          <p className="text-label" style={{ color: 'var(--ember)', letterSpacing: '0.15em', marginBottom: '8px' }}>LOAN APPLICATION</p>
+          <p className="text-label" style={{ color: 'var(--primary)', letterSpacing: '0.15em', marginBottom: '8px' }}>LOAN APPLICATION</p>
           <h1>Submit Loan Application</h1>
           <p>Fill in applicant details for AI-powered decisioning with V2 feature intelligence.</p>
         </motion.div>
@@ -87,7 +87,7 @@ export default function Predict() {
             { label: 'Affordability', value: `${affordability}%`, sub: 'Post-installment income', risk: affordability > 60 ? 'Low' : affordability > 30 ? 'Medium' : 'High' },
           ].map((r, i) => (
             <motion.div key={i} className="stat-card" variants={cardVariants}
-              whileHover={{ y: -4, boxShadow: '0 8px 30px rgba(255,140,66,0.12)', transition: { duration: 0.25 } }}
+              whileHover={{ y: -4, boxShadow: '0 8px 30px rgba(29,28,22,0.08)', transition: { duration: 0.25 } }}
             >
               <div className="stat-label">{r.label}</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: riskColor(r.risk), marginTop: '4px' }}>{r.value}</div>
@@ -99,7 +99,7 @@ export default function Predict() {
         <form onSubmit={handleSubmit}>
           {/* Personal */}
           <motion.div className="glass-card" style={{ marginBottom: '24px' }} variants={cardVariants}
-            whileHover={{ borderColor: 'rgba(255,140,66,0.2)', transition: { duration: 0.3 } }}
+            whileHover={{ boxShadow: '0 16px 48px rgba(29,28,22,0.08)', transition: { duration: 0.3 } }}
           >
             <h3 className="text-title" style={{ marginBottom: '24px' }}>Personal Information</h3>
             <div className="form-grid-3">
@@ -118,7 +118,7 @@ export default function Predict() {
 
           {/* Financial */}
           <motion.div className="glass-card" style={{ marginBottom: '24px' }} variants={cardVariants}
-            whileHover={{ borderColor: 'rgba(255,140,66,0.2)', transition: { duration: 0.3 } }}
+            whileHover={{ boxShadow: '0 16px 48px rgba(29,28,22,0.08)', transition: { duration: 0.3 } }}
           >
             <h3 className="text-title" style={{ marginBottom: '24px' }}>Financial Information</h3>
             <div className="form-grid-3">
@@ -141,7 +141,7 @@ export default function Predict() {
 
           {/* Loan Details */}
           <motion.div className="glass-card" style={{ marginBottom: '24px' }} variants={cardVariants}
-            whileHover={{ borderColor: 'rgba(255,140,66,0.2)', transition: { duration: 0.3 } }}
+            whileHover={{ boxShadow: '0 16px 48px rgba(29,28,22,0.08)', transition: { duration: 0.3 } }}
           >
             <h3 className="text-title" style={{ marginBottom: '24px' }}>Loan Details</h3>
             <div className="form-grid-3">
@@ -162,7 +162,7 @@ export default function Predict() {
 
           {/* Credit History */}
           <motion.div className="glass-card" style={{ marginBottom: '32px' }} variants={cardVariants}
-            whileHover={{ borderColor: 'rgba(255,140,66,0.2)', transition: { duration: 0.3 } }}
+            whileHover={{ boxShadow: '0 16px 48px rgba(29,28,22,0.08)', transition: { duration: 0.3 } }}
           >
             <h3 className="text-title" style={{ marginBottom: '24px' }}>Credit History</h3>
             <div className="form-grid-3">
@@ -180,7 +180,7 @@ export default function Predict() {
           {error && (
             <motion.div
               className="glass-card"
-              style={{ marginBottom: '24px', borderColor: 'rgba(255,107,107,0.3)', background: 'rgba(255,107,107,0.05)' }}
+              style={{ marginBottom: '24px', background: 'var(--danger-container)' }}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
@@ -191,7 +191,7 @@ export default function Predict() {
 
           <motion.div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }} variants={itemVariants}>
             <motion.button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ minWidth: '260px' }}
-              whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(255, 140, 66, 0.4)' }}
+              whileHover={{ scale: 1.04, boxShadow: '0 12px 40px rgba(0, 109, 55, 0.25)' }}
               whileTap={{ scale: 0.97 }}
             >
               {loading ? (<><span className="spinner" style={{ width: '20px', height: '20px', margin: 0, borderWidth: '2px' }} /> Analyzing...</>) : 'Analyze Application'}

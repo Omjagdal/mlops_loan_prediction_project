@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * AuroraBackground — Cinematic animated aurora/nebula effect
- * Creates a living, breathing background with animated gradient blobs
+ * AuroraBackground — Organic Sanctuary warm glow effect
+ * Creates subtle, living gradient blobs with emerald & terracotta
  */
 export default function AuroraBackground() {
   const canvasRef = useRef(null)
@@ -22,12 +22,12 @@ export default function AuroraBackground() {
     resize()
     window.addEventListener('resize', resize)
 
-    // Aurora blob definitions
+    // Organic blobs — emerald, sage, and terracotta
     const blobs = [
-      { x: 0.3, y: 0.2, radius: 400, color: [255, 140, 66], speed: 0.0003, phase: 0 },
-      { x: 0.7, y: 0.8, radius: 350, color: [255, 107, 107], speed: 0.0004, phase: 2 },
-      { x: 0.5, y: 0.5, radius: 500, color: [255, 179, 102], speed: 0.0002, phase: 4 },
-      { x: 0.2, y: 0.7, radius: 300, color: [251, 191, 36], speed: 0.00035, phase: 1 },
+      { x: 0.3, y: 0.15, radius: 450, color: [46, 204, 113], speed: 0.0002, phase: 0 },
+      { x: 0.75, y: 0.7, radius: 380, color: [152, 71, 42], speed: 0.00025, phase: 2 },
+      { x: 0.5, y: 0.4, radius: 500, color: [0, 109, 55], speed: 0.00015, phase: 4 },
+      { x: 0.2, y: 0.8, radius: 320, color: [181, 241, 192], speed: 0.0003, phase: 1 },
     ]
 
     const animate = () => {
@@ -35,28 +35,20 @@ export default function AuroraBackground() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       blobs.forEach(blob => {
-        const cx = canvas.width * (blob.x + Math.sin(time * blob.speed + blob.phase) * 0.15)
-        const cy = canvas.height * (blob.y + Math.cos(time * blob.speed * 0.7 + blob.phase) * 0.1)
-        const r = blob.radius + Math.sin(time * blob.speed * 1.5) * 50
+        const cx = canvas.width * (blob.x + Math.sin(time * blob.speed + blob.phase) * 0.12)
+        const cy = canvas.height * (blob.y + Math.cos(time * blob.speed * 0.7 + blob.phase) * 0.08)
+        const r = blob.radius + Math.sin(time * blob.speed * 1.5) * 40
 
         const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-        gradient.addColorStop(0, `rgba(${blob.color.join(',')}, 0.06)`)
-        gradient.addColorStop(0.5, `rgba(${blob.color.join(',')}, 0.025)`)
-        gradient.addColorStop(1, 'rgba(0,0,0,0)')
+        gradient.addColorStop(0, `rgba(${blob.color.join(',')}, 0.04)`)
+        gradient.addColorStop(0.5, `rgba(${blob.color.join(',')}, 0.015)`)
+        gradient.addColorStop(1, 'rgba(254,249,240,0)')
 
         ctx.fillStyle = gradient
         ctx.beginPath()
         ctx.arc(cx, cy, r, 0, Math.PI * 2)
         ctx.fill()
       })
-
-      // Subtle scanline effect
-      ctx.fillStyle = 'rgba(255, 140, 66, 0.003)'
-      for (let y = 0; y < canvas.height; y += 4) {
-        if (y % 8 === 0) {
-          ctx.fillRect(0, y, canvas.width, 1)
-        }
-      }
 
       animationId = requestAnimationFrame(animate)
     }
@@ -78,7 +70,7 @@ export default function AuroraBackground() {
         inset: 0,
         pointerEvents: 'none',
         zIndex: 0,
-        opacity: 0.8,
+        opacity: 0.6,
       }}
     />
   )

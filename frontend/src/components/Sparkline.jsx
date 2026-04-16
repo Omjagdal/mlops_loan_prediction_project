@@ -1,7 +1,7 @@
 /**
  * Sparkline micro-chart for stat cards
  */
-export default function Sparkline({ data = [], color = 'var(--ember)', height = 32 }) {
+export default function Sparkline({ data = [], color = 'var(--primary-container)', height = 32 }) {
   const max = Math.max(...data, 1)
 
   return (

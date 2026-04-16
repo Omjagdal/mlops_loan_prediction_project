@@ -129,7 +129,7 @@
     "income_x_term",
     "rate_x_amount"
   ],
-  "mlflow_run_id": "1da27b837b884705b5ae37addd6fbe9e",
+  "mlflow_run_id": "8fa64aceabc84a28bd79e00f3c7c5c65",
   "training_samples": 16000,
   "test_samples": 4000,
   "n_features": 55

@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * Enhanced Cinematic Particle System
- * Float particles + glowing orbs + occasional light streaks
+ * Organic Particle System — Emerald Sanctuary
+ * Subtle floating particles with emerald/sage tones on warm beige
  */
-export default function ParticleSystem({ count = 35 }) {
+export default function ParticleSystem({ count = 25 }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -28,38 +28,34 @@ export default function ParticleSystem({ count = 35 }) {
     }
     window.addEventListener('mousemove', handleMouse)
 
-    // Generate particles
+    // Emerald/sage particles
     const particles = Array.from({ length: count }, () => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      size: Math.random() * 2.5 + 0.5,
-      speedX: (Math.random() - 0.5) * 0.3,
-      speedY: -Math.random() * 0.5 - 0.1,
-      opacity: Math.random() * 0.5 + 0.1,
-      pulseSpeed: Math.random() * 0.02 + 0.005,
+      size: Math.random() * 2 + 0.5,
+      speedX: (Math.random() - 0.5) * 0.2,
+      speedY: -Math.random() * 0.3 - 0.05,
+      opacity: Math.random() * 0.3 + 0.05,
+      pulseSpeed: Math.random() * 0.015 + 0.003,
       pulsePhase: Math.random() * Math.PI * 2,
-      hue: Math.random() > 0.7 ? 20 : 30, // warm hues
+      hue: Math.random() > 0.6 ? 145 : 130, // emerald hues
     }))
 
-    // Glowing orbs (larger, softer)
-    const orbs = Array.from({ length: 5 }, () => ({
+    // Soft ambient orbs
+    const orbs = Array.from({ length: 3 }, () => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      size: Math.random() * 80 + 40,
-      speedX: (Math.random() - 0.5) * 0.15,
-      speedY: (Math.random() - 0.5) * 0.15,
-      opacity: Math.random() * 0.04 + 0.01,
-      hue: Math.random() > 0.5 ? 25 : 0,
+      size: Math.random() * 100 + 60,
+      speedX: (Math.random() - 0.5) * 0.08,
+      speedY: (Math.random() - 0.5) * 0.08,
+      opacity: Math.random() * 0.02 + 0.005,
+      hue: Math.random() > 0.5 ? 145 : 25,
     }))
-
-    // Light streaks
-    const streaks = []
-    let streakTimer = 0
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // Draw glowing orbs
+      // Draw ambient orbs
       orbs.forEach(orb => {
         orb.x += orb.speedX
         orb.y += orb.speedY
@@ -68,8 +64,8 @@ export default function ParticleSystem({ count = 35 }) {
         if (orb.y < -100 || orb.y > canvas.height + 100) orb.speedY *= -1
 
         const gradient = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.size)
-        gradient.addColorStop(0, `hsla(${orb.hue}, 100%, 65%, ${orb.opacity})`)
-        gradient.addColorStop(1, 'hsla(0, 0%, 0%, 0)')
+        gradient.addColorStop(0, `hsla(${orb.hue}, 60%, 50%, ${orb.opacity})`)
+        gradient.addColorStop(1, 'hsla(0, 0%, 100%, 0)')
         ctx.fillStyle = gradient
         ctx.beginPath()
         ctx.arc(orb.x, orb.y, orb.size, 0, Math.PI * 2)
@@ -82,28 +78,27 @@ export default function ParticleSystem({ count = 35 }) {
         p.y += p.speedY
         p.pulsePhase += p.pulseSpeed
 
-        // Mouse interaction — subtle repulsion
+        // Mouse interaction — gentle drift
         const dx = p.x - mouse.x
         const dy = p.y - mouse.y
         const dist = Math.sqrt(dx * dx + dy * dy)
-        if (dist < 150) {
-          const force = (150 - dist) / 150 * 0.5
+        if (dist < 120) {
+          const force = (120 - dist) / 120 * 0.3
           p.x += dx / dist * force
           p.y += dy / dist * force
         }
 
-        // Wrap around
+        // Wrap
         if (p.y < -10) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width }
         if (p.x < -10) p.x = canvas.width + 10
         if (p.x > canvas.width + 10) p.x = -10
 
-        const currentOpacity = p.opacity * (0.6 + Math.sin(p.pulsePhase) * 0.4)
+        const currentOpacity = p.opacity * (0.5 + Math.sin(p.pulsePhase) * 0.5)
 
-        // Glow
-        ctx.shadowBlur = p.size * 4
-        ctx.shadowColor = `hsla(${p.hue}, 100%, 70%, ${currentOpacity * 0.8})`
+        ctx.shadowBlur = p.size * 3
+        ctx.shadowColor = `hsla(${p.hue}, 55%, 45%, ${currentOpacity * 0.5})`
 
-        ctx.fillStyle = `hsla(${p.hue}, 100%, 70%, ${currentOpacity})`
+        ctx.fillStyle = `hsla(${p.hue}, 55%, 45%, ${currentOpacity})`
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
         ctx.fill()
@@ -111,15 +106,15 @@ export default function ParticleSystem({ count = 35 }) {
         ctx.shadowBlur = 0
       })
 
-      // Draw connection lines between nearby particles
+      // Subtle connection lines (sage green)
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x
           const dy = particles[i].y - particles[j].y
           const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 120) {
-            const alpha = (1 - dist / 120) * 0.06
-            ctx.strokeStyle = `rgba(255, 140, 66, ${alpha})`
+          if (dist < 100) {
+            const alpha = (1 - dist / 100) * 0.03
+            ctx.strokeStyle = `rgba(0, 109, 55, ${alpha})`
             ctx.lineWidth = 0.5
             ctx.beginPath()
             ctx.moveTo(particles[i].x, particles[i].y)
@@ -128,44 +123,6 @@ export default function ParticleSystem({ count = 35 }) {
           }
         }
       }
-
-      // Occasional light streaks
-      streakTimer++
-      if (streakTimer > 300 + Math.random() * 400) {
-        streakTimer = 0
-        streaks.push({
-          x: Math.random() * canvas.width,
-          y: 0,
-          length: Math.random() * 200 + 100,
-          speed: Math.random() * 4 + 3,
-          opacity: 0.15,
-          angle: Math.PI / 4 + (Math.random() - 0.5) * 0.3,
-        })
-      }
-
-      streaks.forEach((s, idx) => {
-        s.x += Math.cos(s.angle) * s.speed
-        s.y += Math.sin(s.angle) * s.speed
-        s.opacity *= 0.995
-
-        const endX = s.x - Math.cos(s.angle) * s.length
-        const endY = s.y - Math.sin(s.angle) * s.length
-
-        const gradient = ctx.createLinearGradient(s.x, s.y, endX, endY)
-        gradient.addColorStop(0, `rgba(255, 179, 102, ${s.opacity})`)
-        gradient.addColorStop(1, 'rgba(255, 179, 102, 0)')
-
-        ctx.strokeStyle = gradient
-        ctx.lineWidth = 1.5
-        ctx.beginPath()
-        ctx.moveTo(s.x, s.y)
-        ctx.lineTo(endX, endY)
-        ctx.stroke()
-
-        if (s.opacity < 0.01 || s.y > canvas.height + 100) {
-          streaks.splice(idx, 1)
-        }
-      })
 
       animationId = requestAnimationFrame(animate)
     }
