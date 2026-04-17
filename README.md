@@ -243,8 +243,3 @@ Once the backend is running, visit:
 
 MIT License
 
----
-
-<p align="center">
-  Built with ❤️ using MLOps best practices
-</p>
