@@ -85,7 +85,7 @@ export default function Dashboard() {
   const accuracy = ((metrics.accuracy || 0.942) * 100).toFixed(1)
 
   const stats = [
-    { label: 'Mode Accuracy', value: parseFloat(accuracy), suffix: '%', delta: '+2.1% from v1', deltaType: 'positive', sparkData: [65, 72, 68, 80, 75, 88, 94] },
+    { label: 'Model Accuracy', value: parseFloat(accuracy), suffix: '%', delta: '+2.1% from v1', deltaType: 'positive', sparkData: [65, 72, 68, 80, 75, 88, 94] },
     { label: 'Total Predictions', value: 12847, suffix: '', delta: 'Active pipeline', deltaType: 'neutral', sparkData: [40, 55, 48, 62, 58, 70, 82] },
     { label: 'Approval Rate', value: 68.3, suffix: '%', delta: 'Within threshold', deltaType: 'neutral', sparkData: [60, 63, 65, 64, 67, 66, 68] },
     { label: 'API Uptime', value: 99.97, suffix: '%', delta: 'Online', deltaType: 'positive', sparkData: [99, 99, 100, 99, 100, 100, 100], showPulse: true },
