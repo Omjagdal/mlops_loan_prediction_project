@@ -10,12 +10,10 @@ services:
     container_name: loan-prediction-backend
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
       - PYTHONPATH=/app
-    volumes:
-      - ./backend/models:/app/models
-      - ./ml_pipeline/data/processed:/data/processed
     depends_on:
       - mlflow
     networks:
