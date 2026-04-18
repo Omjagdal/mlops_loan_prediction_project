@@ -1,0 +1,54 @@
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'requirements.txt'
+      - '.github/workflows/backend-cd.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'requirements.txt'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test-backend:
+    name: Lint & Test Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest flake8
+
+      - name: Lint with flake8
+        run: |
+          flake8 backend/ ml_pipeline/ --max-line-length=120 --ignore=E501,W503,F401,E226,F541,E128,F841
+
+      - name: Test backend imports
+        run: |
+          cd backend && python -c "from app.main import app; print('Backend imports OK')"
+
+  deploy-backend:
+    name: Deploy Backend to Render
+    needs: [test-backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "Render deploy triggered"

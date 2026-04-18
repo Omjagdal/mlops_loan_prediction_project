@@ -1,0 +1,92 @@
+name: ML Pipeline CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ml_pipeline/**'
+      - 'requirements.txt'
+      - '.github/workflows/ml-pipeline-cd.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ml_pipeline/**'
+      - 'requirements.txt'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  ml-validate:
+    name: ML Pipeline Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate dataset
+        run: python -m ml_pipeline.src.generate_dataset
+
+      - name: Run preprocessing
+        run: python -m ml_pipeline.src.data_preprocessing
+
+      - name: Train models
+        run: python -m ml_pipeline.src.train
+
+      - name: Evaluate model (deployment gate)
+        env:
+          CI: 'true'
+        run: python -m ml_pipeline.src.evaluate
+
+      - name: Verify model artifacts exist
+        run: |
+          test -f backend/models/model.pkl && echo "model.pkl OK"
+          test -f backend/models/model_metadata.json && echo "metadata OK"
+          test -f ml_pipeline/experiments/evaluation_results.json && echo "eval results OK"
+
+  upload-artifacts:
+    name: Upload ML Artifacts to Supabase
+    needs: [ml-validate]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate, Train & Upload
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_BUCKET: ml-artifacts
+        run: |
+          python -m ml_pipeline.src.generate_dataset
+          python -m ml_pipeline.src.data_preprocessing
+          python -m ml_pipeline.src.train
+          python -m ml_pipeline.src.upload_artifacts
+
+  restart-backend:
+    name: Restart Backend to Load New Model
+    needs: [upload-artifacts]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "Render deploy triggered to pull new ML models"
