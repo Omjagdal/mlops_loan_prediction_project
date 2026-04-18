@@ -1,77 +1,124 @@
 #!/bin/bash
 # ============================================
 # Loan Prediction - Deployment Script
+# Targets: Vercel (frontend), Render (backend), Supabase (storage)
 # ============================================
 set -e
 
 echo "======================================"
-echo "🚀 LOAN PREDICTION DEPLOYMENT"
+echo "LOAN PREDICTION DEPLOYMENT"
 echo "======================================"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
-# Configuration
-AWS_REGION="${AWS_REGION:-us-east-1}"
-ECR_REPO="${ECR_REPO:-loan-prediction}"
-K8S_NAMESPACE="${K8S_NAMESPACE:-loan-prediction}"
-IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || echo 'latest')}"
+# ============================================
+# Mode: local | render | full
+# ============================================
+MODE="${1:-local}"
 
-echo "📋 Configuration:"
-echo "   Region: $AWS_REGION"
-echo "   ECR Repo: $ECR_REPO"
-echo "   Tag: $IMAGE_TAG"
-echo "   Namespace: $K8S_NAMESPACE"
+echo "Mode: $MODE"
 echo ""
 
-# Step 1: Build Docker images
-echo "🐳 Step 1: Building Docker images..."
-docker build -t ${ECR_REPO}-backend:${IMAGE_TAG} ./backend
-docker build -t ${ECR_REPO}-frontend:${IMAGE_TAG} ./frontend
-echo "✅ Images built successfully"
+# -------------------------------------------
+# LOCAL: Start backend + frontend locally
+# -------------------------------------------
+if [ "$MODE" = "local" ]; then
+    echo "Starting local development..."
 
-# Step 2: Run with Docker Compose (local)
-if [ "$1" = "local" ]; then
+    # Check if model exists
+    if [ ! -f "backend/models/model.pkl" ]; then
+        echo "No trained model found. Running training pipeline first..."
+        bash scripts/train.sh
+    fi
+
     echo ""
-    echo "🏠 Deploying locally with Docker Compose..."
-    docker-compose up -d
-    echo "✅ Local deployment complete"
-    echo "   Backend: http://localhost:8000"
-    echo "   Frontend: http://localhost:3000"
-    echo "   MLflow: http://localhost:5000"
-    echo "   Prometheus: http://localhost:9090"
-    echo "   Grafana: http://localhost:3001"
+    echo "Starting backend (port 8000)..."
+    cd backend && uvicorn app.main:app --reload --port 8000 &
+    BACKEND_PID=$!
+    cd "$PROJECT_ROOT"
+
+    echo "Starting frontend (port 5173)..."
+    cd frontend && npm run dev &
+    FRONTEND_PID=$!
+    cd "$PROJECT_ROOT"
+
+    echo ""
+    echo "======================================"
+    echo "LOCAL DEPLOYMENT RUNNING"
+    echo "======================================"
+    echo "  Backend:  http://localhost:8000"
+    echo "  Frontend: http://localhost:5173"
+    echo "  API Docs: http://localhost:8000/docs"
+    echo ""
+    echo "Press Ctrl+C to stop..."
+
+    trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
+    wait
     exit 0
 fi
 
-# Step 3: Push to ECR (cloud deployment)
-echo ""
-echo "📤 Step 2: Pushing to ECR..."
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-docker tag ${ECR_REPO}-backend:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}-backend:${IMAGE_TAG}
-docker tag ${ECR_REPO}-frontend:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}-frontend:${IMAGE_TAG}
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}-backend:${IMAGE_TAG}
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}-frontend:${IMAGE_TAG}
+# -------------------------------------------
+# RENDER: Trigger Render deploy via hook
+# -------------------------------------------
+if [ "$MODE" = "render" ]; then
+    if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+        echo "ERROR: RENDER_DEPLOY_HOOK_URL not set"
+        echo "Get your deploy hook from Render Dashboard > Settings > Deploy Hook"
+        exit 1
+    fi
 
-# Step 4: Deploy to Kubernetes
-echo ""
-echo "☸️  Step 3: Deploying to Kubernetes..."
-kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -f k8s/ -n $K8S_NAMESPACE
-kubectl set image deployment/loan-prediction-backend backend=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}-backend:${IMAGE_TAG} -n $K8S_NAMESPACE
-kubectl set image deployment/loan-prediction-frontend frontend=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}-frontend:${IMAGE_TAG} -n $K8S_NAMESPACE
+    echo "Triggering Render deploy..."
+    curl -s "$RENDER_DEPLOY_HOOK_URL"
+    echo ""
+    echo "Render deploy triggered. Check Render Dashboard for status."
+    exit 0
+fi
 
-# Step 5: Wait for rollout
-echo ""
-echo "⏳ Step 4: Waiting for rollout..."
-kubectl rollout status deployment/loan-prediction-backend -n $K8S_NAMESPACE --timeout=300s
-kubectl rollout status deployment/loan-prediction-frontend -n $K8S_NAMESPACE --timeout=300s
+# -------------------------------------------
+# UPLOAD: Upload ML artifacts to Supabase
+# -------------------------------------------
+if [ "$MODE" = "upload" ]; then
+    echo "Uploading ML artifacts to Supabase..."
+    python -m ml_pipeline.src.upload_artifacts
+    exit 0
+fi
 
+# -------------------------------------------
+# FULL: Train + Upload + Deploy
+# -------------------------------------------
+if [ "$MODE" = "full" ]; then
+    echo "Step 1: Training ML pipeline..."
+    bash scripts/train.sh
+
+    echo ""
+    echo "Step 2: Uploading artifacts to Supabase..."
+    python -m ml_pipeline.src.upload_artifacts
+
+    echo ""
+    echo "Step 3: Triggering Render backend deploy..."
+    if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+        curl -s "$RENDER_DEPLOY_HOOK_URL"
+        echo "Render deploy triggered."
+    else
+        echo "RENDER_DEPLOY_HOOK_URL not set — skipping Render deploy."
+    fi
+
+    echo ""
+    echo "======================================"
+    echo "FULL DEPLOYMENT COMPLETE"
+    echo "======================================"
+    echo "  Frontend: Deploy via 'git push' (Vercel auto-deploys)"
+    echo "  Backend:  Render deploy triggered"
+    echo "  Model:    Uploaded to Supabase Storage"
+    exit 0
+fi
+
+echo "Usage: ./scripts/deploy.sh [local|render|upload|full]"
 echo ""
-echo "======================================"
-echo "✅ DEPLOYMENT COMPLETE"
-echo "======================================"
-kubectl get pods -n $K8S_NAMESPACE
-echo ""
-kubectl get services -n $K8S_NAMESPACE
+echo "Modes:"
+echo "  local   - Start backend + frontend locally (default)"
+echo "  render  - Trigger Render deploy via webhook"
+echo "  upload  - Upload ML artifacts to Supabase"
+echo "  full    - Train + Upload + Deploy"

@@ -1,11 +1,15 @@
 """
 Model service for loan prediction.
 Handles model loading, prediction, and explainability.
-Adapted for loan_dataset_20000.csv schema.
+
+V2: Supports loading model artifacts from:
+  1. Supabase Storage (production — Render deployment)
+  2. Local filesystem (development)
 """
 
 import os
 import json
+import tempfile
 import numpy as np
 import pandas as pd
 import joblib
@@ -19,6 +23,39 @@ MODELS_DIR = os.path.join(BASE_DIR, "models")
 _DOCKER_PROCESSED = "/data/processed"
 _LOCAL_PROCESSED = os.path.join(os.path.dirname(BASE_DIR), "ml_pipeline", "data", "processed")
 PROCESSED_DIR = _DOCKER_PROCESSED if os.path.isdir(_DOCKER_PROCESSED) else _LOCAL_PROCESSED
+
+# Supabase configuration (for Render deployment)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "ml-artifacts")
+
+
+def _get_supabase_client():
+    """Create Supabase client if credentials are available."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    try:
+        from supabase import create_client
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except ImportError:
+        print("WARNING: supabase package not installed. Using local filesystem.")
+        return None
+    except Exception as e:
+        print(f"WARNING: Failed to create Supabase client: {e}")
+        return None
+
+
+def _download_from_supabase(client, filename: str, local_path: str) -> bool:
+    """Download a file from Supabase Storage."""
+    try:
+        data = client.storage.from_(SUPABASE_BUCKET).download(filename)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(data)
+        return True
+    except Exception as e:
+        print(f"WARNING: Failed to download {filename} from Supabase: {e}")
+        return False
 
 
 class ModelService:
@@ -34,7 +71,62 @@ class ModelService:
         self._loaded = False
 
     def load_model(self):
-        """Load the trained model and preprocessing artifacts."""
+        """Load the trained model and preprocessing artifacts.
+        Tries Supabase Storage first, then falls back to local filesystem.
+        """
+        # Try Supabase first (for Render deployment)
+        supabase = _get_supabase_client()
+        if supabase:
+            print("Attempting to load model from Supabase Storage...")
+            success = self._load_from_supabase(supabase)
+            if success:
+                return True
+            print("Supabase load failed, falling back to local filesystem...")
+
+        # Fall back to local filesystem
+        return self._load_from_filesystem()
+
+    def _load_from_supabase(self, client) -> bool:
+        """Load all model artifacts from Supabase Storage."""
+        try:
+            # Create temp directory for downloaded artifacts
+            cache_dir = os.path.join(tempfile.gettempdir(), "loan_model_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+
+            # Download all required files
+            artifacts = {
+                "model.pkl": os.path.join(cache_dir, "model.pkl"),
+                "scaler.pkl": os.path.join(cache_dir, "scaler.pkl"),
+                "label_encoders.pkl": os.path.join(cache_dir, "label_encoders.pkl"),
+                "target_encoder.pkl": os.path.join(cache_dir, "target_encoder.pkl"),
+                "feature_names.pkl": os.path.join(cache_dir, "feature_names.pkl"),
+                "model_metadata.json": os.path.join(cache_dir, "model_metadata.json"),
+            }
+
+            for remote_name, local_path in artifacts.items():
+                if not _download_from_supabase(client, remote_name, local_path):
+                    return False
+
+            # Load artifacts
+            self.model = joblib.load(artifacts["model.pkl"])
+            self.scaler = joblib.load(artifacts["scaler.pkl"])
+            self.label_encoders = joblib.load(artifacts["label_encoders.pkl"])
+            self.target_encoder = joblib.load(artifacts["target_encoder.pkl"])
+            self.feature_names = joblib.load(artifacts["feature_names.pkl"])
+
+            with open(artifacts["model_metadata.json"], "r") as f:
+                self.model_metadata = json.load(f)
+
+            self._loaded = True
+            print(f"Model loaded from Supabase: {type(self.model).__name__}")
+            return True
+
+        except Exception as e:
+            print(f"Failed to load from Supabase: {e}")
+            return False
+
+    def _load_from_filesystem(self) -> bool:
+        """Load all model artifacts from local filesystem."""
         try:
             model_path = os.path.join(MODELS_DIR, "model.pkl")
             self.model = joblib.load(model_path)
@@ -50,11 +142,11 @@ class ModelService:
                     self.model_metadata = json.load(f)
 
             self._loaded = True
-            print(f"✅ Model loaded: {type(self.model).__name__}")
+            print(f"Model loaded from filesystem: {type(self.model).__name__}")
             return True
 
         except Exception as e:
-            print(f"❌ Failed to load model: {e}")
+            print(f"Failed to load model from filesystem: {e}")
             self._loaded = False
             return False
 
@@ -176,7 +268,6 @@ class ModelService:
         # For single-row prediction, use reasonable quintile estimates
         income_val = df["annual_income"].iloc[0]
         loan_val = df["loan_amount"].iloc[0]
-        # Map to 1-5 quintile based on typical ranges
         df["income_quintile"] = int(np.clip(np.searchsorted([25000, 40000, 60000, 90000], income_val) + 1, 1, 5))
         df["loan_amount_quintile"] = int(np.clip(np.searchsorted([5000, 12000, 25000, 60000], loan_val) + 1, 1, 5))
         df["profile_interaction"] = df["income_quintile"] * df["loan_amount_quintile"]
@@ -316,11 +407,11 @@ class ModelService:
         return {
             "model_name": self.model_metadata.get("model_name", "loan_prediction_model"),
             "model_type": type(self.model).__name__,
-            "version": "1.0.0",
+            "version": "2.0.0",
             "metrics": self.model_metadata.get("metrics", {}),
             "feature_count": self.model_metadata.get("n_features", 0),
             "training_samples": self.model_metadata.get("training_samples", 0),
-            "last_updated": "2026-04-15",
+            "last_updated": "2026-04-18",
         }
 
     def get_feature_importance(self) -> dict:

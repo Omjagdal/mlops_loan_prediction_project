@@ -88,47 +88,60 @@ def generate_loan_dataset(n_samples: int = 20000, seed: int = 42) -> pd.DataFram
     num_of_delinquencies = np.clip(num_of_delinquencies, 0, 15)
 
     # --- Generate Target: loan_paid_back ---
-    # Probability based on realistic financial factors
+    # V2: Balanced probability — no single feature should dominate (>30%)
+    # Each factor contributes 10-20% of signal for a well-distributed model
     approval_prob = np.zeros(n_samples, dtype=float)
 
-    # Credit score (strongest predictor)
-    approval_prob += np.where(credit_score >= 740, 0.25, np.where(credit_score >= 670, 0.15, np.where(credit_score >= 580, 0.05, -0.10)))
+    # 1. Credit score — 20% contribution (strongest, but not dominant)
+    credit_norm = (credit_score - 300) / 550  # 0-1 scale
+    approval_prob += credit_norm * 0.20
 
-    # Debt-to-income ratio
-    approval_prob += np.where(debt_to_income_ratio < 0.2, 0.15, np.where(debt_to_income_ratio < 0.35, 0.08, -0.05))
+    # 2. Debt-to-income ratio — 18% contribution
+    dti_signal = 1 - debt_to_income_ratio  # lower DTI = better
+    approval_prob += dti_signal * 0.18
 
-    # Income adequacy
+    # 3. Income adequacy — 15% contribution
     pti = installment / (monthly_income + 1)
-    approval_prob += np.where(pti < 0.25, 0.12, np.where(pti < 0.4, 0.05, -0.08))
+    income_signal = np.clip(1 - pti * 2, 0, 1)  # lower payment-to-income = better
+    approval_prob += income_signal * 0.15
 
-    # Credit utilization
-    approval_prob += np.where(utilization < 0.3, 0.10, np.where(utilization < 0.6, 0.04, -0.05))
+    # 4. Credit utilization — 12% contribution
+    util_signal = 1 - np.clip(utilization, 0, 1)
+    approval_prob += util_signal * 0.12
 
-    # Delinquency history
-    approval_prob += np.where(delinquency_history == 0, 0.10, np.where(delinquency_history <= 1, 0.03, -0.08))
+    # 5. Delinquency & public records — 12% contribution
+    delinq_signal = 1 / (1 + delinquency_history + num_of_delinquencies)
+    records_signal = 1 / (1 + public_records)
+    approval_prob += (delinq_signal * 0.6 + records_signal * 0.4) * 0.12
 
-    # Employment status bonus
+    # 6. Employment status — 10% contribution (NOT dominant)
+    emp_arr = np.array(employment_status)
     approval_prob += np.where(
-        np.array(employment_status) == "Employed", 0.08,
-        np.where(np.array(employment_status) == "Self-employed", 0.04,
-        np.where(np.array(employment_status) == "Retired", 0.02, -0.10))
+        emp_arr == "Employed", 0.10,
+        np.where(emp_arr == "Self-employed", 0.07,
+        np.where(emp_arr == "Retired", 0.05, 0.00))
     )
 
-    # Education bonus
+    # 7. Loan grade — 8% contribution
+    grade_arr = np.array([g[0] for g in grade_subgrade])
+    grade_map = {"A": 0.08, "B": 0.06, "C": 0.04, "D": 0.02, "E": 0.01, "F": 0.0, "G": 0.0}
+    approval_prob += np.array([grade_map.get(g, 0.02) for g in grade_arr])
+
+    # 8. Education & age — 5% contribution
+    edu_arr = np.array(education_level)
     approval_prob += np.where(
-        np.isin(np.array(education_level), ["Master's", "PhD"]), 0.05,
-        np.where(np.array(education_level) == "Bachelor's", 0.03, 0.0)
+        np.isin(edu_arr, ["Master's", "PhD"]), 0.03,
+        np.where(edu_arr == "Bachelor's", 0.02, 0.0)
     )
+    age_signal = np.where((age >= 25) & (age <= 55), 0.02, 0.0)
+    approval_prob += age_signal
 
-    # Public records penalty
-    approval_prob -= public_records * 0.05
-
-    # Base rate + noise
-    approval_prob += 0.35 + np.random.normal(0, 0.05, n_samples)
+    # Add noise for realistic variation
+    approval_prob += np.random.normal(0, 0.06, n_samples)
     approval_prob = np.clip(approval_prob, 0, 1)
 
-    # Binary target (~68% approval rate)
-    loan_paid_back = np.where(approval_prob > 0.42, "Yes", "No")
+    # Binary target (~65-70% approval rate)
+    loan_paid_back = np.where(approval_prob > 0.68, "Yes", "No")
 
     # --- Create DataFrame ---
     df = pd.DataFrame({

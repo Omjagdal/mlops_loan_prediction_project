@@ -7,18 +7,15 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY_BACKEND: loan-prediction-backend
-  ECR_REPOSITORY_FRONTEND: loan-prediction-frontend
-  EKS_CLUSTER_NAME: loan-prediction-cluster
-  K8S_NAMESPACE: loan-prediction
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
 
 jobs:
   # ============================================
-  # Job 1: Lint & Test
+  # Job 1: Lint & Test Backend
   # ============================================
-  test:
-    name: Lint & Test
+  test-backend:
+    name: Lint & Test Backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -38,21 +35,53 @@ jobs:
         run: |
           flake8 backend/ ml_pipeline/ --max-line-length=120 --ignore=E501,W503
 
-      - name: Run ML pipeline tests
-        run: |
-          python -m ml_pipeline.src.data_preprocessing
-          python -m ml_pipeline.src.train
-          python -m ml_pipeline.src.evaluate
-
       - name: Test backend imports
         run: |
-          cd backend && python -c "from app.main import app; print('✅ Backend imports OK')"
+          cd backend && python -c "from app.main import app; print('Backend imports OK')"
 
   # ============================================
-  # Job 2: Build Frontend
+  # Job 2: ML Pipeline Validation
   # ============================================
-  build-frontend:
-    name: Build Frontend
+  ml-validate:
+    name: ML Pipeline Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate dataset
+        run: python -m ml_pipeline.src.generate_dataset
+
+      - name: Run preprocessing
+        run: python -m ml_pipeline.src.data_preprocessing
+
+      - name: Train models
+        run: python -m ml_pipeline.src.train
+
+      - name: Evaluate model (deployment gate)
+        env:
+          CI: 'true'
+        run: python -m ml_pipeline.src.evaluate
+
+      - name: Verify model artifacts exist
+        run: |
+          test -f backend/models/model.pkl && echo "model.pkl OK"
+          test -f backend/models/model_metadata.json && echo "metadata OK"
+          test -f ml_pipeline/experiments/evaluation_results.json && echo "eval results OK"
+
+  # ============================================
+  # Job 3: Build & Test Frontend
+  # ============================================
+  test-frontend:
+    name: Build & Test Frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +89,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -77,77 +106,66 @@ jobs:
           path: frontend/dist/
 
   # ============================================
-  # Job 3: Build & Push Docker Images
+  # Job 4: Deploy Backend to Render
   # ============================================
-  docker:
-    name: Docker Build & Push
-    needs: [test, build-frontend]
+  deploy-backend:
+    name: Deploy Backend to Render
+    needs: [test-backend, ml-validate]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "Render deploy triggered"
+
+  # ============================================
+  # Job 5: Deploy Frontend to Vercel
+  # ============================================
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    needs: [test-frontend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build & push backend image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG ./backend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:latest
-
-      - name: Build & push frontend image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG ./frontend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:latest
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: frontend
+          vercel-args: '--prod'
 
   # ============================================
-  # Job 4: Deploy to EKS
+  # Job 6: Upload ML Artifacts to Supabase
   # ============================================
-  deploy:
-    name: Deploy to EKS
-    needs: [docker]
+  upload-artifacts:
+    name: Upload ML Artifacts to Supabase
+    needs: [ml-validate]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Deploy to Kubernetes
+      - name: Generate, Train & Upload
         env:
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_TAG: ${{ github.sha }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_BUCKET: ml-artifacts
         run: |
-          kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -f k8s/ -n $K8S_NAMESPACE
-          kubectl set image deployment/loan-prediction-backend backend=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG -n $K8S_NAMESPACE
-          kubectl set image deployment/loan-prediction-frontend frontend=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG -n $K8S_NAMESPACE
-          kubectl rollout status deployment/loan-prediction-backend -n $K8S_NAMESPACE --timeout=300s
-          kubectl rollout status deployment/loan-prediction-frontend -n $K8S_NAMESPACE --timeout=300s
+          python -m ml_pipeline.src.generate_dataset
+          python -m ml_pipeline.src.data_preprocessing
+          python -m ml_pipeline.src.train
+          python -m ml_pipeline.src.upload_artifacts

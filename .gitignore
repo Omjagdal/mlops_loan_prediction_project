@@ -18,12 +18,15 @@ venv.bak/
 mlruns/
 mlflow.db
 
-# Data and Artifacts
+# Data (large files — stored in Supabase)
 *.pkl
 *.csv
 *.db
 *.sqlite3
 *.log
+
+# Keep model_metadata.json tracked (small, important for API)
+!backend/models/model_metadata.json
 
 # Node
 node_modules/
@@ -33,3 +36,10 @@ build/
 
 # OS Files
 .DS_Store
+
+# Vercel
+.vercel/
+
+# IDE
+.idea/
+.vscode/

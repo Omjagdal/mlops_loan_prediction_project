@@ -1,0 +1,25 @@
+# ============================================
+# Render Blueprint — Backend Auto-Deploy Config
+# ============================================
+services:
+  - type: web
+    name: loan-prediction-api
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SUPABASE_URL
+        sync: false  # Set in Render dashboard
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: ml-artifacts
+      - key: FRONTEND_URL
+        sync: false  # Set to your Vercel URL
+      - key: MLFLOW_TRACKING_URI
+        value: sqlite:///mlflow.db
