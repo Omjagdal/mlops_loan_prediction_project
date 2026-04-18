@@ -2,49 +2,61 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loan-prediction-backend
+  namespace: default
   labels:
     app: loan-prediction
-    component: backend
+    component: api
 spec:
   replicas: 3
   selector:
     matchLabels:
       app: loan-prediction
-      component: backend
+      component: api
   template:
     metadata:
       labels:
         app: loan-prediction
-        component: backend
+        component: api
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
       containers:
-        - name: backend
-          image: loan-prediction-backend:latest
+        - name: fastapi-backend
+          image: your-docker-registry/loan-prediction-api:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
               protocol: TCP
           env:
-            - name: MLFLOW_TRACKING_URI
-              value: "http://mlflow-service:5000"
+            # Model Registry Credentials
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: mops-secrets
+                  key: SUPABASE_URL
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mops-secrets
+                  key: SUPABASE_KEY
             - name: PYTHONPATH
               value: "/app"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
               memory: "512Mi"
               cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          # Health gates check if the Supabase model downloaded successfully
           livenessProbe:
             httpGet:
               path: /api/health
               port: 8000
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 15
+            periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
@@ -52,40 +64,38 @@ spec:
               path: /api/health
               port: 8000
             initialDelaySeconds: 10
-            periodSeconds: 5
+            periodSeconds: 10
             timeoutSeconds: 3
-          volumeMounts:
-            - name: model-storage
-              mountPath: /app/models
-      volumes:
-        - name: model-storage
-          persistentVolumeClaim:
-            claimName: model-pvc
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loan-prediction-frontend
+  namespace: default
   labels:
     app: loan-prediction
-    component: frontend
+    component: ui
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: loan-prediction
-      component: frontend
+      component: ui
   template:
     metadata:
       labels:
         app: loan-prediction
-        component: frontend
+        component: ui
     spec:
       containers:
-        - name: frontend
-          image: loan-prediction-frontend:latest
+        - name: react-frontend
+          image: your-docker-registry/loan-prediction-ui:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
+          env:
+            - name: VITE_API_URL
+              value: "http://loan-prediction-service:8000"
           resources:
             requests:
               memory: "128Mi"

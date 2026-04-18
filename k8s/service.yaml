@@ -1,53 +1,37 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-service
+  name: loan-prediction-backend-service
+  namespace: default
   labels:
     app: loan-prediction
-    component: backend
+    component: api
 spec:
   type: ClusterIP
-  selector:
-    app: loan-prediction
-    component: backend
   ports:
     - port: 8000
       targetPort: 8000
       protocol: TCP
       name: http
+  selector:
+    app: loan-prediction
+    component: api
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: frontend-service
+  name: loan-prediction-frontend-service
+  namespace: default
   labels:
     app: loan-prediction
-    component: frontend
+    component: ui
 spec:
-  type: LoadBalancer
-  selector:
-    app: loan-prediction
-    component: frontend
+  type: LoadBalancer 
   ports:
     - port: 80
       targetPort: 3000
       protocol: TCP
       name: http
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mlflow-service
-  labels:
-    app: loan-prediction
-    component: mlflow
-spec:
-  type: ClusterIP
   selector:
     app: loan-prediction
-    component: mlflow
-  ports:
-    - port: 5000
-      targetPort: 5000
-      protocol: TCP
-      name: http
+    component: ui
