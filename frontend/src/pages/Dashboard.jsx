@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getModelInfo, getHealth, getFeatureImportance } from '../api/client'
 import AnimatedCounter from '../components/AnimatedCounter'
-
+import Sparkline from '../components/Sparkline'
 import PageTransition, { itemVariants } from '../components/PageTransition'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
