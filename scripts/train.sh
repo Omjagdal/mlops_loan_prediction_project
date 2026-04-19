@@ -51,10 +51,7 @@ echo ""
 echo "Step 4: Evaluating model (V2 — deployment gate)..."
 python -m ml_pipeline.src.evaluate
 
-# Step 5: Register model (optional)
-echo ""
-echo "Step 5: Registering model..."
-python -m ml_pipeline.src.register_model || echo "Model registration skipped (MLflow server may not be running)"
+# Step 5: (Removed - using Supabase registry via upload_artifacts)
 
 # Step 6: Upload to Supabase (optional — if env vars set)
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
