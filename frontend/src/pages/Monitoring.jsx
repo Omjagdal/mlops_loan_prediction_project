@@ -1,11 +1,10 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { getHealth } from '../api/client'
 import AnimatedCounter from '../components/AnimatedCounter'
 import PageTransition, { itemVariants } from '../components/PageTransition'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-
-const DataFlow3D = lazy(() => import('../components/DataFlow3D'))
+import PipelineDiagram from '../components/PipelineDiagram'
 
 const genTS = (n, base, v) => Array.from({ length: n }, (_, i) => ({ time: `${i}m`, value: Math.max(0, base + (Math.random() - 0.5) * v) }))
 
@@ -102,7 +101,7 @@ export default function Monitoring() {
           ))}
         </motion.div>
 
-        {/* ═══ 3D DATA FLOW VISUALIZATION ═══ */}
+        {/* ═══ ML PIPELINE DATA FLOW DIAGRAM ═══ */}
         <motion.div className="glass-card" variants={cardVariants} style={{ padding: 0, overflow: 'hidden', marginBottom: '24px' }}
           whileHover={{ boxShadow: '0 16px 48px rgba(29,28,22,0.08)' }}
         >
@@ -110,27 +109,15 @@ export default function Monitoring() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 className="text-title">ML Pipeline Data Flow</h3>
-                <p className="text-body" style={{ marginTop: '4px', fontSize: '0.8125rem' }}>Real-time data streaming through preprocessing → training → deployment</p>
+                <p className="text-body" style={{ marginTop: '4px', fontSize: '0.8125rem' }}>End-to-end pipeline: Ingestion → Feature Engineering → Training → Gates → Registry → Production</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="pulse-indicator" />
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>STREAMING</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>LIVE</span>
               </div>
             </div>
           </div>
-          <Suspense fallback={<div style={{ height: '200px' }} />}>
-            <DataFlow3D style={{ height: '200px', borderRadius: 0 }} />
-          </Suspense>
-          <div style={{ padding: '0 var(--space-2xl) var(--space-2xl)', display: 'flex', justifyContent: 'space-around' }}>
-            {['Data Ingestion', 'Feature Engineering', 'Model Training', 'Production'].map((stage, i) => (
-              <div key={stage} style={{ textAlign: 'center' }}>
-                <div className="text-label">{stage}</div>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: i === 1 ? 'var(--warning)' : 'var(--primary)', marginTop: '2px' }}>
-                  {i === 1 ? 'Processing' : 'Active'}
-                </div>
-              </div>
-            ))}
-          </div>
+          <PipelineDiagram />
         </motion.div>
 
         {/* Metrics Charts */}
