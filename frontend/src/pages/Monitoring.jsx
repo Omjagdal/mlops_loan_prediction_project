@@ -10,7 +10,7 @@ const genTS = (n, base, v) => Array.from({ length: n }, (_, i) => ({ time: `${i}
 
 const pipelines = [
   { name: 'Data Pipeline', status: 'Active', icon: 'DB', color: 'var(--primary)' },
-  { name: 'Model Training', status: 'Idle', icon: 'ML', color: 'var(--warning)' },
+  { name: 'Mode Training', status: 'Idle', icon: 'ML', color: 'var(--warning)' },
   { name: 'API Server', status: 'Running', icon: 'API', color: 'var(--primary)' },
   { name: 'Docker Engine', status: 'Healthy', icon: 'SYS', color: 'var(--primary)' },
 ]
@@ -62,7 +62,7 @@ export default function Monitoring() {
   const memVal = Math.floor(Math.random() * 20 + 40)
 
   useEffect(() => {
-    const fn = async () => { try { setHealth(await getHealth()) } catch {} }
+    const fn = async () => { try { setHealth(await getHealth()) } catch { } }
     fn(); const i = setInterval(fn, 10000); return () => clearInterval(i)
   }, [])
 
