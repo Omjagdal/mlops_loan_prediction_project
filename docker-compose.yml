@@ -50,7 +50,7 @@ services:
     image: ghcr.io/mlflow/mlflow:v2.15.0
     container_name: loan-mlflow
     ports:
-      - "5000:5000"
+      - "5001:5000"
     command: >
       mlflow server
       --host 0.0.0.0
